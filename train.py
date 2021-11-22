@@ -3,6 +3,7 @@ from tensorflow import (GradientTape, where, not_equal,
                         int32, cast, gather_nd, logical_and, tile, constant, reshape)
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.models import load_model
 from tensorflow.data import TFRecordDataset
 from model import LSTMModel
 import config
@@ -12,8 +13,11 @@ import motionUtils as Util
 
 
 class Train():
-    def __init__(self):
-        self.model = LSTMModel(config.num_agents_per_scenario, config.num_states_steps,
+    def __init__(self, load_saved_model = False):
+        if load_saved_model:
+            self.model = load_model(config.MODEL_PATH, compile=False)
+        else:
+            self.model = LSTMModel(config.num_agents_per_scenario, config.num_states_steps,
                                config.num_future_steps)
         self.optimizer = Adam(config.LR)
         self.mse = MeanSquaredError()
@@ -76,6 +80,6 @@ class Train():
         self.model.save(config.MODEL_PATH)
 
 if __name__ == "__main__":
-    train = Train()
+    train = Train(True)
     train.train()
     #train.save_model()
