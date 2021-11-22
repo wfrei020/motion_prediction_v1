@@ -1,2 +1,2 @@
-model_checkpoint_path: "lstm_model_with_types"
-all_model_checkpoint_paths: "lstm_model_with_types"
+model_checkpoint_path: "lstm_model"
+all_model_checkpoint_paths: "lstm_model"
