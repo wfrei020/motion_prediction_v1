@@ -79,6 +79,6 @@ class Train():
         self.model.save(config.MODEL_PATH)
 
 if __name__ == "__main__":
-    train = Train()
+    train = Train(True)
     train.train()
     #train.save_model()
