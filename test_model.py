@@ -3,7 +3,7 @@ import config
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow import reshape, newaxis, ones, shape, tile, int64, concat, transpose
 from tensorflow import range as tfrange
-from tensorflow.keras.models import load_model
+from model import LSTMModel
 from tqdm import tqdm
 import numpy as np
 import motion_metric as mm
@@ -18,7 +18,9 @@ class RunModel():
                                config.num_future_steps)
         self.model.load_weights(config.MODEL_PATH)
         #self.model = load_model(config.MODEL_PATH)
+
         self.mse = MeanSquaredError()
+
         self.motion_metric = None
         self.metric_names = None
         metrics_config = mm.default_metrics_config()
