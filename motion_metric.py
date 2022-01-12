@@ -16,7 +16,7 @@ def default_metrics_config():
   speed_scale_lower: 0.5
   speed_scale_upper: 1.0
   step_configurations {
-    measurement_step: 5
+    measurement_step: 3
     lateral_miss_threshold: 1.0
     longitudinal_miss_threshold: 2.0
   }

@@ -1,18 +1,23 @@
 import motionUtils as Util
 import config
 from tensorflow.keras.losses import MeanSquaredError
-from tensorflow import reshape, newaxis, ones, shape, tile, int64, concat
+from tensorflow import reshape, newaxis, ones, shape, tile, int64, concat, transpose
 from tensorflow import range as tfrange
 from tensorflow.keras.models import load_model
 from tqdm import tqdm
 import numpy as np
 import motion_metric as mm
+from model import LSTMModel
 from waymo_open_dataset.metrics.python import config_util_py as config_util
+from scipy.ndimage.filters import gaussian_filter1d
 
 
 class RunModel():
     def __init__(self):
-        self.model = load_model(config.MODEL_PATH)
+        self.model = LSTMModel(config.num_agents_per_scenario, config.num_states_steps,
+                               config.num_future_steps)
+        self.model.load_weights(config.MODEL_PATH)
+        #self.model = load_model(config.MODEL_PATH)
         self.mse = MeanSquaredError()
         self.motion_metric = None
         self.metric_names = None
@@ -56,6 +61,7 @@ class RunModel():
                     pred_trajectory = self.model(input_with_lights)
                     pred_trajectory = reshape(pred_trajectory, [batch_input.shape[0], config.num_future_steps, 2])
                     pred_trajectory, target = Util.get_actual_predictions(pred_trajectory, batch_target, batch_origin)
+                    
                     if batch_prediction == None:
                         batch_prediction = reshape(pred_trajectory,[batch_input.shape[0],80,2])
                         batch_target_out = reshape(target,[target.shape[0],80,2])
@@ -73,7 +79,9 @@ class RunModel():
 
 
     def validate_with_metrics(self):
-        tqdm_datasests = tqdm(range(config.NUM_OF_VAL_DATASET))
+        start_ds = config.NUM_OF_VAL_DATASET - 50
+        # start_ds = 0
+        tqdm_datasests = tqdm(range(start_ds,config.NUM_OF_VAL_DATASET))
         for set in tqdm_datasests:
             dataset = Util.get_dataset_segment(config.BASE_VALIDATION_PATH+ str(set).zfill(5) + "-of-00150")
             tqdm_dataset = tqdm(dataset, ncols=80, leave=False)
@@ -94,20 +102,36 @@ class RunModel():
                     pred_trajectory = self.model(input_with_lights)
                     pred_trajectory = reshape(pred_trajectory, [mini_batch.shape[0], config.num_future_steps, 2])
                     pred_trajectory = Util.get_original_from_shift(origin, pred_trajectory, pred_trajectory.shape)
+
+                    # new_pred = []
+                    # for i in range(shape(pred_trajectory)[0]):
+                    #     xsmoothed = gaussian_filter1d(pred_trajectory[i,:,0], sigma=3)
+                    #     ysmoothed = gaussian_filter1d(pred_trajectory[i,:,1], sigma=3)
+                    #     new_pred.append(transpose([xsmoothed, ysmoothed]))
+                    
+                    # pred_trajectory = new_pred
+
                     if batch_prediction == None:
                         batch_prediction = reshape(pred_trajectory,[1, mini_batch.shape[0],80,2])
                     else:
                         batch_prediction = concat([batch_prediction, reshape(pred_trajectory,[1, mini_batch.shape[0],80,2])],0)
                 self.update_metrics(batch, batch_prediction)
-            train_metric_values = self.motion_metric.result()
-            for i, m in enumerate(
-                    ['min_ade', 'min_fde', 'miss_rate', 'overlap_rate', 'map']):
-                for j, n in enumerate(self.metric_names):
-                    print('{}/{}: {}'.format(m, n, train_metric_values[i, j]))
+        train_metric_values = self.motion_metric.result()
+        for i, m in enumerate(
+                ['min_ade', 'min_fde', 'miss_rate', 'overlap_rate', 'map']):
+            for j, n in enumerate(self.metric_names):
+                print('{}/{}: {}'.format(m, n, train_metric_values[i, j]))
+        np.save('results_start_'+ str(start_ds)+'_end_'+str(config.NUM_OF_VAL_DATASET)+'.npy',train_metric_values, allow_pickle=True)
 
     def update_metrics(self, inputs, pred_trajectory):
         pred_trajectory = pred_trajectory[:, :, newaxis, newaxis]
+        # pred_trajectory = pred_trajectory[:,:,:,:,:50,:]
+        # print(pred_trajectory.shape)
+        # quit()
+        
         gt_is_valid = inputs['gt_future_is_valid']
+        
+        #target = inputs['gt_future_states'][:,:,:,:2]
         target = inputs['gt_future_states']
         pred_score = ones(shape=shape(pred_trajectory)[:3])
         # [batch_size, num_agents].
@@ -121,6 +145,7 @@ class RunModel():
                                 (batch_size, 1, 1))
         # [batch_size, num_agents, 1].
         pred_gt_indices_mask = inputs['tracks_to_predict'][..., newaxis]
+
         self.motion_metric.update_state(pred_trajectory, pred_score, target,
                                     gt_is_valid, pred_gt_indices,
                                     pred_gt_indices_mask, object_type, inputs['object_id'])

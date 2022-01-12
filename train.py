@@ -2,7 +2,7 @@ import numpy as np
 from tensorflow import (GradientTape, where, not_equal,
                         int32, cast, gather_nd, logical_and, tile, constant, reshape)
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError
 from tensorflow.data import TFRecordDataset
 from model import LSTMModel
 import config
@@ -19,7 +19,8 @@ class Train():
             self.model.load_weights(config.MODEL_PATH)
             
         self.optimizer = Adam(config.LR)
-        self.mse = MeanSquaredError()
+        # self.loss_fn = MeanSquaredError()
+        self.loss_fn = MeanAbsoluteError()
 
     def train_step(self, data):
         ret = []
@@ -28,7 +29,7 @@ class Train():
             pred_trajectory = self.model(data['inputs'], training=True)
             gt_targets = data['targets']
             gt_targets = np.reshape(gt_targets,(gt_targets.shape[0],160))
-            loss = self.mse(gt_targets, pred_trajectory)
+            loss = self.loss_fn(gt_targets, pred_trajectory)
         grads = tape.gradient(loss, self.model.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
         return loss
@@ -75,8 +76,8 @@ class Train():
             self.save_model()
 
     def save_model(self):
-        self.model.save_weights(config.MODEL_PATH)
-        self.model.save(config.MODEL_PATH)
+        self.model.save_weights(config.NEW_MODEL_PATH)
+        self.model.save(config.NEW_MODEL_PATH)
 
 if __name__ == "__main__":
     train = Train(True)

@@ -6,14 +6,18 @@ from tensorflow.data import TFRecordDataset
 from tensorflow.math import reduce_all
 import config
 import feature_description as fd
-
+import feature_extraction_test as fd_test
 
 def get_dataset_segment(filename):
     dataset = TFRecordDataset(filename)
     dataset = dataset.map(fd.parse)
     dataset = dataset.batch(config.BATCH_SIZE)
     return dataset
-
+def get_test_dataset_segment(filename):
+    dataset = TFRecordDataset(filename)
+    dataset = dataset.map(fd_test.parse)
+    dataset = dataset.batch(config.BATCH_SIZE)
+    return dataset
 def get_shifted_data(origin, data, shape):
     # origin [agents,2]
     # data [agents, 11, 2]
